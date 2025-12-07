@@ -199,56 +199,104 @@ class TwitterClient:
         Search for recent posts on Twitter.
         
         Args:
-            query: Search query (empty for recent posts)
+            query: Search query (if empty, uses default: recent English posts)
             max_results: Maximum number of results (10-100)
         
         Returns:
             List of post dictionaries
         """
-        url = f"{self.base_url}/tweets/search/recent"
+        url = f"{self.base_url}/tweets/search/all"
+        #tweets/search/all?max_results=10
         
+        # Query parameter is required for search endpoint
+        # If no query provided, use a default query to get recent posts
+        # Using a simple query that should work: get recent English posts that are not retweets
+        if not query or query.strip() == "":
+            # Default query: recent English posts, not retweets, from last 7 days
+            query = "lang:en -is:retweet"
+        
+        # Ensure max_results is within valid range (10-100)
+        max_results = max(10, min(max_results, 100))
+        
+        # Build parameters according to X API v2 documentation
+        # Reference: https://docs.x.com/x-api/fundamentals/data-dictionary
         params = {
-            "max_results": min(max_results, 100),
+            "query": query,
+            "max_results": max_results,
             "tweet.fields": "created_at,author_id,public_metrics,text",
             "user.fields": "username,name,description,public_metrics",
             "expansions": "author_id"
         }
         
-        if query:
-            params["query"] = query
-        else:
-            # Default: search for recent posts (last 7 days)
-            params["query"] = "-is:retweet lang:en"
-        
         try:
+            # Debug: print the request URL (without showing the token)
+            if os.getenv("DEBUG_API_CALLS", "").lower() == "true":
+                from urllib.parse import urlencode
+                debug_url = f"{url}?{urlencode(params)}"
+                print(f"[DEBUG] Request URL: {debug_url}", file=sys.stderr)
+            
             response = requests.get(url, headers=self.headers, params=params, timeout=30)
             response.raise_for_status()
             data = response.json()
             
-            posts = []
-            users = {user["id"]: user for user in data.get("includes", {}).get("users", [])}
+            # Check for errors in response
+            if "errors" in data:
+                error_messages = [err.get("message", "Unknown error") for err in data["errors"]]
+                print(f"API Errors: {', '.join(error_messages)}", file=sys.stderr)
+                return []
             
-            for tweet in data.get("data", []):
-                author_id = tweet.get("author_id")
-                user = users.get(author_id, {})
-                
-                posts.append({
-                    "id": tweet.get("id"),
-                    "text": tweet.get("text", ""),
-                    "author_id": author_id,
-                    "username": user.get("username", "unknown"),
-                    "name": user.get("name", "Unknown"),
-                    "created_at": tweet.get("created_at"),
-                    "metrics": tweet.get("public_metrics", {})
-                })
+            posts = []
+            users = {}
+            
+            # Extract users from includes
+            if "includes" in data and "users" in data["includes"]:
+                users = {user["id"]: user for user in data["includes"]["users"]}
+            
+            # Extract tweets from data
+            if "data" in data:
+                for tweet in data["data"]:
+                    author_id = tweet.get("author_id")
+                    user = users.get(author_id, {})
+                    
+                    posts.append({
+                        "id": tweet.get("id"),
+                        "text": tweet.get("text", ""),
+                        "author_id": author_id,
+                        "username": user.get("username", "unknown"),
+                        "name": user.get("name", "Unknown"),
+                        "created_at": tweet.get("created_at"),
+                        "metrics": tweet.get("public_metrics", {})
+                    })
             
             return posts
             
         except requests.exceptions.HTTPError as e:
-            if response.status_code == 401:
-                print("Authentication failed. Please check your Bearer token.", file=sys.stderr)
-            elif response.status_code == 429:
-                print("Rate limit exceeded. Please wait before trying again.", file=sys.stderr)
+            # Try to get detailed error information
+            if hasattr(e.response, 'json'):
+                try:
+                    error_data = e.response.json()
+                    if "errors" in error_data:
+                        for error in error_data["errors"]:
+                            print(f"API Error {error.get('code', 'unknown')}: {error.get('message', 'No message')}", file=sys.stderr)
+                            if "details" in error:
+                                print(f"  Details: {error['details']}", file=sys.stderr)
+                    else:
+                        print(f"Error response: {error_data}", file=sys.stderr)
+                except:
+                    if hasattr(e.response, 'text'):
+                        print(f"Error response text: {e.response.text[:500]}", file=sys.stderr)
+            
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                if status_code == 401:
+                    print("Authentication failed. Please check your Bearer token.", file=sys.stderr)
+                elif status_code == 400:
+                    print("Bad Request. Check your query syntax and parameters.", file=sys.stderr)
+                    print(f"Query used: {query}", file=sys.stderr)
+                elif status_code == 429:
+                    print("Rate limit exceeded. Please wait before trying again.", file=sys.stderr)
+                else:
+                    print(f"HTTP Error {status_code}: {e}", file=sys.stderr)
             else:
                 print(f"HTTP Error: {e}", file=sys.stderr)
             return []
