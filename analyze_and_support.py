@@ -2,12 +2,28 @@
 """
 Script to scan Twitter posts, analyze sentiment using Grok, and provide positive support.
 
+Features:
+- Scans Twitter posts and analyzes sentiment
+- Automatically replies to negative posts offering AI therapist conversation
+- Tracks user responses and initiates voice calls when users agree
+
 Usage:
-    python analyze_and_support.py [--query QUERY] [--max-posts N] [--dry-run]
+    python analyze_and_support.py [--query QUERY] [--max-posts N] [--dry-run] [--no-auto-reply]
+    
+    # Scan and auto-reply (default)
+    python analyze_and_support.py --query "feeling sad"
+    
+    # Scan without auto-reply
+    python analyze_and_support.py --query "feeling sad" --no-auto-reply
+    
+    # Monitor for responses and initiate calls
+    python start_monitoring.py
 
 Environment Variables:
     X_API_BEARER_TOKEN: Your X API Bearer token
     GROK_API_KEY: Your xAI Grok API key
+    BACKEND_URL: Backend URL for call initiation (default: http://localhost:8001)
+    TELEPHONY_URL: Telephony service URL (default: http://localhost:3000)
 """
 
 import os
@@ -116,6 +132,76 @@ Respond in JSON format with:
                 "needs_support": False,
                 "reasoning": f"API error: {str(e)}"
             }
+    
+    def generate_therapist_offer_reply(self, post_text: str, username: str, concerns: List[str]) -> str:
+        """
+        Generate a reply offering AI therapist conversation.
+        
+        Args:
+            post_text: The original post text
+            username: The username to address
+            concerns: List of identified concerns
+        
+        Returns:
+            A reply message offering AI therapist support
+        """
+        concerns_str = ", ".join(concerns) if concerns else "what you're going through"
+        
+        prompt = f"""Generate a warm, compassionate reply to @{username}'s post on Twitter.
+They posted: "{post_text}"
+
+The post shows concerns about: {concerns_str}
+
+Create a reply that:
+- Is genuine, empathetic, and non-intrusive
+- Acknowledges their feelings
+- Offers to talk with an AI therapist if they'd like
+- Is appropriate for a Twitter reply (max 280 characters)
+- Feels caring and supportive
+- Does NOT mention that this is automated or AI-generated
+- Includes a simple way for them to indicate interest (like replying "yes" or "talk")
+
+Write only the reply text, nothing else."""
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=self.headers,
+                json={
+                    "model": "grok-4-0709",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a compassionate person who reaches out to help others. Write warm, genuine replies."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 150
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+            message = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            
+            # Clean up the message
+            message = message.replace('"', '').strip()
+            if message.startswith("@"):
+                message = message[1:]
+            
+            # Ensure it's within character limit
+            if len(message) > 280:
+                message = message[:277] + "..."
+            
+            return message if message else f"Hey @{username}, I saw your post and I'm here if you'd like to talk. Reply 'yes' if you'd like to chat with an AI therapist who can help. 💙"
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error generating therapist offer: {e}", file=sys.stderr)
+            return f"Hey @{username}, I saw your post and I'm here if you'd like to talk. Reply 'yes' if you'd like to chat with an AI therapist. 💙"
     
     def generate_support_message(self, post_text: str, username: str, concerns: List[str]) -> str:
         """
@@ -328,6 +414,36 @@ class TwitterClient:
             print(f"Error fetching user info: {e}", file=sys.stderr)
             return None
     
+    def reply_to_tweet(self, tweet_id: str, text: str) -> Optional[Dict[str, Any]]:
+        """
+        Reply to a tweet.
+        
+        Args:
+            tweet_id: The ID of the tweet to reply to
+            text: The reply text (max 280 characters)
+        
+        Returns:
+            Dictionary with reply information if successful, None otherwise
+        """
+        # Note: This requires OAuth 1.0a with user context, not just Bearer token
+        # For now, we'll simulate and log
+        print(f"[INFO] Reply functionality requires OAuth 1.0a with user context.")
+        print(f"[INFO] Would reply to tweet {tweet_id}: {text[:100]}...")
+        
+        # In production, you would use:
+        # url = f"{self.base_url}/tweets"
+        # response = requests.post(url, headers=self.headers, json={
+        #     "text": text,
+        #     "reply": {"in_reply_to_tweet_id": tweet_id}
+        # })
+        
+        return {
+            "id": f"reply_{tweet_id}_{int(time.time())}",
+            "text": text,
+            "in_reply_to_tweet_id": tweet_id,
+            "status": "simulated"
+        }
+    
     def send_direct_message(self, user_id: str, message: str) -> bool:
         """
         Send a direct message to a user.
@@ -377,7 +493,9 @@ def scan_and_analyze(
     grok_client: GrokClient,
     query: str = "",
     max_posts: int = 50,
-    dry_run: bool = False
+    dry_run: bool = False,
+    auto_reply: bool = True,
+    response_tracker = None
 ) -> List[Dict[str, Any]]:
     """
     Main function to scan posts, analyze sentiment, and provide support.
@@ -425,6 +543,41 @@ def scan_and_analyze(
                 "post": post,
                 "analysis": analysis
             })
+            
+            # Automatically reply to negative posts offering AI therapist
+            if auto_reply and not dry_run:
+                print(f"  💬 Generating therapist offer reply...")
+                offer_reply = grok_client.generate_therapist_offer_reply(
+                    post_text=post["text"],
+                    username=post["username"],
+                    concerns=analysis.get("concerns", [])
+                )
+                
+                print(f"  📝 Reply: {offer_reply}")
+                
+                # Reply to the tweet
+                reply_result = twitter_client.reply_to_tweet(
+                    tweet_id=post["id"],
+                    text=offer_reply
+                )
+                
+                if reply_result:
+                    print(f"  ✅ Reply sent (or simulated)")
+                    # Store the reply info for tracking
+                    post["therapist_offer_reply"] = reply_result
+                    
+                    # Record the offer in response tracker
+                    if response_tracker:
+                        response_tracker.record_offer_sent(
+                            user_id=post["author_id"],
+                            username=post["username"],
+                            tweet_id=post["id"],
+                            reply_id=reply_result.get("id", "")
+                        )
+                else:
+                    print(f"  ⚠️  Could not send reply")
+            elif auto_reply:
+                print(f"  [DRY RUN] Would send therapist offer reply")
         
         # Rate limiting - be respectful
         time.sleep(1)
@@ -554,6 +707,20 @@ Environment Variables:
         help="Dry run mode - don't send messages"
     )
     
+    parser.add_argument(
+        "--auto-reply",
+        action="store_true",
+        default=True,
+        help="Automatically reply to negative posts offering AI therapist (default: True)"
+    )
+    
+    parser.add_argument(
+        "--no-auto-reply",
+        action="store_false",
+        dest="auto_reply",
+        help="Don't automatically reply to posts"
+    )
+    
     args = parser.parse_args()
     
     # Get API credentials
@@ -573,13 +740,25 @@ Environment Variables:
     twitter_client = TwitterClient(bearer_token)
     grok_client = GrokClient(grok_api_key)
     
+    # Initialize response tracker if auto-reply is enabled
+    response_tracker = None
+    if args.auto_reply:
+        try:
+            from response_tracker import ResponseTracker
+            response_tracker = ResponseTracker()
+            print("[INFO] Response tracking enabled - will monitor for user responses")
+        except ImportError:
+            print("[WARNING] response_tracker module not found. Tracking disabled.")
+    
     try:
         scan_and_analyze(
             twitter_client=twitter_client,
             grok_client=grok_client,
             query=args.query,
             max_posts=args.max_posts,
-            dry_run=args.dry_run
+            dry_run=args.dry_run,
+            auto_reply=args.auto_reply,
+            response_tracker=response_tracker
         )
     except KeyboardInterrupt:
         print("\nInterrupted by user.", file=sys.stderr)
