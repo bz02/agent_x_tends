@@ -63,7 +63,7 @@ Respond in JSON format with:
                 f"{self.base_url}/chat/completions",
                 headers=self.headers,
                 json={
-                    "model": "grok-beta",
+                    "model": "grok-4-0709",
                     "messages": [
                         {
                             "role": "system",
@@ -152,7 +152,7 @@ Write only the message text, nothing else."""
                 f"{self.base_url}/chat/completions",
                 headers=self.headers,
                 json={
-                    "model": "grok-beta",
+                    "model": "grok-4-0709",
                     "messages": [
                         {
                             "role": "system",

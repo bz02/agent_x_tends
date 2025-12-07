@@ -1,0 +1,67 @@
+{
+  "scan_timestamp": "2025-12-07T10:16:46.294733",
+  "query": "die",
+  "total_posts_scanned": 10,
+  "negative_posts_found": 2,
+  "results": [
+    {
+      "username": "s7gie",
+      "user_id": "1210261323864514561",
+      "profile_url": "https://twitter.com/s7gie",
+      "original_post": "RT @goofystappen: F1 isn't real sport anyways , we can die tmrw or just next hour , none of this would matter",
+      "post_url": "https://twitter.com/s7gie/status/1997731324099215475",
+      "sentiment_analysis": {
+        "is_negative": true,
+        "sentiment": "negative",
+        "severity": "medium",
+        "concerns": [
+          "nihilistic thoughts",
+          "existential distress",
+          "possible depression"
+        ],
+        "needs_support": true,
+        "reasoning": "The post expresses a dismissive view of life's meaning due to mortality, indicating potential underlying depression or anxiety about impermanence."
+      },
+      "support_message": "Hey @s7gie, I saw your RT and it hit close to home—those thoughts about life's fragility can feel so overwhelming. You're not alone in that, and it's okay to feel it. Remember, even in the chaos, there are moments worth holding onto. If you ever want to talk, I'm here. Take care ❤️",
+      "contact_info": {
+        "username": "s7gie",
+        "name": "sage ☆",
+        "description": "oscar piastri and lewis hamilton defender",
+        "location": "tifosi (deragatory) | 81x44",
+        "url": null,
+        "profile_url": "https://twitter.com/s7gie"
+      },
+      "timestamp": "2025-12-07T10:16:33.834174"
+    },
+    {
+      "username": "mabr422rdz",
+      "user_id": "1707349206166368256",
+      "profile_url": "https://twitter.com/mabr422rdz",
+      "original_post": "@cicero_online @SteinbachErika DIE SCHWARZ/ROT/GRÜNEN POLIT-PLÄNE SEHEN DA \"KEIN BEDARF\"...DA LANGFRISTIG DIE WEIHNACHTSMÄRKTE IN ALLE STILLE AUSSTERBEN WERDEN...WIE GESAGT...POLITISCH/IDEOLOGISCH GEPLANT...UND  GEWOLLT...DIE KARTELL-PARTEIEN \"TRÖSTEN\" UNS BEREITS MIT \"ORIENTALISCHEN ERSATZ-MÄRKTEN\"...\n🫱🏻 ☪️🕌",
+      "post_url": "https://twitter.com/mabr422rdz/status/1997731324095058340",
+      "sentiment_analysis": {
+        "is_negative": true,
+        "sentiment": "negative",
+        "severity": "medium",
+        "concerns": [
+          "political frustration",
+          "conspiracy theories",
+          "cultural anxiety",
+          "possible xenophobia"
+        ],
+        "needs_support": true,
+        "reasoning": "The post conveys anger and pessimism about perceived political plans to replace traditional Christmas markets with 'Oriental' alternatives, using all caps and emojis to emphasize distress over cultural changes, which may reflect underlying anxiety or paranoia."
+      },
+      "support_message": "Hey @mabr422rdz, I saw your tweet and it sounds like you're really frustrated with the political scene and worried about cultural changes. I get how that can feel overwhelming—it's tough when things seem to shift so fast. If you ever want to chat or vent, I'm here. Wishing you some peace and brighter days ahead. Take care! ❤️",
+      "contact_info": {
+        "username": "mabr422rdz",
+        "name": "Edar De Montechristo",
+        "description": "",
+        "location": null,
+        "url": null,
+        "profile_url": "https://twitter.com/mabr422rdz"
+      },
+      "timestamp": "2025-12-07T10:16:44.292937"
+    }
+  ]
+}
