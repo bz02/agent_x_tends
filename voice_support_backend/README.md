@@ -25,6 +25,34 @@ Backend service that integrates `analyze_and_support.py` with voice calling capa
    PORT=8001
    ```
 
+   **Note about HOSTNAME (for Telephony Service):**
+   
+   The TypeScript telephony service requires a `HOSTNAME` environment variable pointing to your ngrok URL. This is needed because:
+   
+   - Twilio needs a public URL to send webhooks to your local server
+   - ngrok creates a secure tunnel from a public URL to your localhost
+   - The telephony service uses HOSTNAME to generate WebSocket URLs for Twilio
+   
+   **Setup ngrok:**
+   ```bash
+   # 1. Install ngrok (if not installed)
+   # macOS: brew install ngrok
+   # Or download from https://ngrok.com/download
+   
+   # 2. Start your telephony server (runs on localhost:3000)
+   cd ../xai-voice-examples-main/examples/agent/telephony/xai
+   npm run dev
+   
+   # 3. In another terminal, start ngrok
+   ngrok http 3000
+   
+   # 4. Copy the HTTPS URL (e.g., https://abc123.ngrok.app)
+   # 5. Set HOSTNAME in telephony service .env file:
+   HOSTNAME=https://abc123.ngrok.app
+   ```
+   
+   **Important:** The ngrok URL changes each time you restart ngrok (unless you have a paid static domain). You'll need to update the HOSTNAME and Twilio webhook URLs when this happens.
+
 3. **Optional: Mem0 Setup**
    - Install Mem0: `pip install mem0ai`
    - Mem0 will use ChromaDB by default (file-based storage)
@@ -90,6 +118,14 @@ The backend provides conversation context to the TypeScript telephony service:
 2. Backend generates initial greeting using Langraph
 3. During call, transcripts are sent to backend for memory storage
 4. Backend provides context-aware responses
+
+**Telephony Service Setup:**
+- The telephony service must be running and accessible via ngrok
+- Set `HOSTNAME` environment variable to your ngrok URL (e.g., `https://abc123.ngrok.app`)
+- Configure Twilio webhooks to point to your ngrok URL:
+  - Incoming Call Webhook: `https://your-ngrok-domain.ngrok.app/twiml`
+  - Call Status Webhook: `https://your-ngrok-domain.ngrok.app/call-status`
+- Keep ngrok running while the telephony service is active
 
 ## Memory Storage
 

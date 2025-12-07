@@ -95,31 +95,71 @@ cd xai-voice-examples-main/examples/agent/telephony/xai
 npm install
 ```
 
-### 2.2 Environment Variables
+### 2.2 Setup ngrok
 
-Create a `.env` file:
+**What is ngrok and why is it needed?**
+
+ngrok creates a secure tunnel from a public URL to your local server. This is required because:
+- Twilio needs a public URL to send webhooks to your local server
+- Twilio cannot reach `localhost` directly
+- The telephony service uses the HOSTNAME to generate WebSocket URLs for Twilio
+
+**Setup steps:**
+
+1. **Install ngrok** (if not installed):
+   ```bash
+   # macOS
+   brew install ngrok
+   
+   # Or download from https://ngrok.com/download
+   ```
+
+2. **Start your telephony server** (in one terminal):
+   ```bash
+   cd xai-voice-examples-main/examples/agent/telephony/xai
+   npm run dev
+   # Server runs on localhost:3000
+   ```
+
+3. **Start ngrok** (in another terminal):
+   ```bash
+   ngrok http 3000
+   ```
+
+4. **Copy the HTTPS URL** that ngrok displays:
+   ```
+   Forwarding   https://abc123.ngrok.app -> http://localhost:3000
+   ```
+
+5. **Note the URL** - you'll need it for the next step
+
+### 2.3 Environment Variables
+
+Create a `.env` file in the telephony directory:
 
 ```bash
 XAI_API_KEY=your_grok_api_key_here
-HOSTNAME=https://your-ngrok-domain.ngrok.app
+HOSTNAME=https://abc123.ngrok.app  # Use your actual ngrok URL from step 2.2
 BACKEND_URL=http://localhost:8001
 PORT=3000
 ```
 
-### 2.3 Setup ngrok
-
-```bash
-ngrok http 3000
-```
-
-Copy the ngrok domain and update `HOSTNAME` in `.env`.
+**Important Notes:**
+- Replace `abc123.ngrok.app` with your actual ngrok URL
+- The ngrok URL changes each time you restart ngrok (unless you have a paid static domain)
+- You'll need to update HOSTNAME and Twilio webhooks when the URL changes
+- Keep ngrok running while your telephony service is active
 
 ### 2.4 Configure Twilio
 
 1. Go to [Twilio Console](https://console.twilio.com/)
-2. Configure your phone number webhooks:
-   - **Incoming Call Webhook**: `https://your-ngrok-domain.ngrok.app/twiml`
-   - **Call Status Update Webhook**: `https://your-ngrok-domain.ngrok.app/call-status`
+2. Navigate to your phone number settings
+3. Configure webhooks using your ngrok URL:
+   - **Incoming Call Webhook**: `https://abc123.ngrok.app/twiml` (use your actual ngrok URL)
+   - **Call Status Update Webhook**: `https://abc123.ngrok.app/call-status` (use your actual ngrok URL)
+   - Make sure to select **POST** as the HTTP method
+
+**Remember:** If your ngrok URL changes (after restarting ngrok), you must update these webhook URLs in Twilio Console.
 
 ### 2.5 Run Telephony Server
 
